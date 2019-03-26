@@ -33,6 +33,7 @@
 class InverseDynamicsTest : public CommonMultiBodyBase
 {
 	btMultiBody* m_multiBody;
+	btInverseDynamics::MultiBodyTree* m_inverseModel;
 
 public:
 	InverseDynamicsTest(struct GUIHelperInterface* helper);
@@ -42,6 +43,8 @@ public:
 	virtual void stepSimulation(float deltaTime);
 	btMultiBody* createTestMultiBody(const btVector3 &boneHalfExtents);
 	void InverseDynamicsTest::createMultiBodyColliders(btMultiBodyDynamicsWorld *world, btMultiBody *body, const btVector3 &boneHalfExtents);
+	btInverseDynamics::MultiBodyTree* createInverseDynamicModel(btMultiBody *body);
+	void calcForceWithKenimaticData(btInverseDynamics::MultiBodyTree* inverseModel);
 	void calcBoxShapeInteria(const btVector3 &halfExtents, btScalar mass, btVector3 &interia);
 
 	virtual void resetCamera()
@@ -67,9 +70,7 @@ InverseDynamicsTest::~InverseDynamicsTest()
 
 void InverseDynamicsTest::initPhysics()
 {
-	//roboticists like Z up
-	int upAxis = 2;
-	upAxis = 1;
+	int upAxis = 1;
 	m_guiHelper->setUpAxis(upAxis);
 
 	createEmptyDynamicsWorld();
@@ -79,10 +80,12 @@ void InverseDynamicsTest::initPhysics()
 
 	m_guiHelper->createPhysicsDebugDrawer(m_dynamicsWorld);
 
-	const btVector3 boneHalfExtents = btVector3(0.05, 0.37, 0.1);
+	const btVector3 boneHalfExtents = btVector3(0.05, 0.4, 0.1);
 	m_multiBody = createTestMultiBody(boneHalfExtents);
 	m_dynamicsWorld->addMultiBody(m_multiBody);
 	createMultiBodyColliders(m_dynamicsWorld, m_multiBody, boneHalfExtents);
+	m_inverseModel = createInverseDynamicModel(m_multiBody);
+	m_inverseModel->setGravityInWorldFrame(gravity);
 
 	m_guiHelper->autogenerateGraphicsObjects(m_dynamicsWorld);
 }
@@ -93,8 +96,23 @@ void InverseDynamicsTest::stepSimulation(float deltaTime)
 	// step the simulation
 	if (m_dynamicsWorld)
 	{
-		float internalTimeStep = 1. / 240.f;
-		m_dynamicsWorld->stepSimulation(deltaTime, 10, internalTimeStep);
+		const int numDofs = m_multiBody->getNumDofs();
+		btInverseDynamics::vecx nu(numDofs), qdot(numDofs), q(numDofs), jointForce(numDofs);
+		for (int i = 0; i < numDofs; i++)
+		{
+			q[i] = m_multiBody->getJointPos(i);
+			qdot[i] = m_multiBody->getJointVel(i);
+			btScalar acceleration = 0;
+			nu[i] = acceleration;
+		}
+
+		m_inverseModel->calculateInverseDynamics(q, qdot, nu, &jointForce);
+		for (int i = 0; i < numDofs; i++)
+		{
+			m_multiBody->addJointTorque(i, jointForce[i]);
+		}
+		;
+		m_dynamicsWorld->stepSimulation(deltaTime);
 		// todo(thomas) check that this is correct:
 		// want to advance by 10ms, with 1ms timesteps
 
@@ -104,7 +122,7 @@ void InverseDynamicsTest::stepSimulation(float deltaTime)
 
 btMultiBody* InverseDynamicsTest::createTestMultiBody(const btVector3 &boneHalfExtents)
 {
-	int numLinks = 5;
+	int numLinks = 10;
 	btScalar mass = 1.0;
 	btVector3 inertiaDiag; // todo，这是算的对角线转动惯量？？
 	calcBoxShapeInteria(boneHalfExtents, mass, inertiaDiag);
@@ -112,7 +130,7 @@ btMultiBody* InverseDynamicsTest::createTestMultiBody(const btVector3 &boneHalfE
 	bool fixedBase = true;
 	bool canSleep = false; // todo， what mean
 	btMultiBody* multiBody = new btMultiBody(numLinks, mass, inertiaDiag, fixedBase, canSleep);
-	btVector3 pos = btVector3(-0.4f, 3.f, 0.f);
+	btVector3 pos = btVector3(0, 3.f, 0);
 	btQuaternion rotation = btQuaternion(0, 0, 0, 1);
 	multiBody->setBasePos(pos);
 	multiBody->setWorldToBaseRot(rotation);
@@ -123,22 +141,31 @@ btMultiBody* InverseDynamicsTest::createTestMultiBody(const btVector3 &boneHalfE
 
 	bool disableParentCollision = true; // todo， what mean
 
+	btVector3 hingeJointAxis(1, 0, 0);
 	for (int i = 0; i < numLinks; ++i)
 	{
-		multiBody->setupSpherical(i, mass, inertiaDiag, i - 1, btQuaternion(0, 0, 0, 1), parentComToCurrentPivot, currentPivotToCurrentCom, disableParentCollision);
+		multiBody->setupRevolute(i, mass, inertiaDiag, i - 1, btQuaternion(0, 0, 0, 1), hingeJointAxis, parentComToCurrentPivot, currentPivotToCurrentCom, disableParentCollision);
+		//multiBody->setupSpherical(i, mass, inertiaDiag, i - 1, btQuaternion(0, 0, 0, 1), parentComToCurrentPivot, currentPivotToCurrentCom, disableParentCollision);
 	}
 	
 	multiBody->finalizeMultiDof();
 
 	multiBody->setHasSelfCollision(true);
 
-	multiBody->setLinearDamping(0.1f);
-	multiBody->setAngularDamping(0.9f);
+	//multiBody->setLinearDamping(0.1f);
+	//multiBody->setAngularDamping(0.9f);
+	multiBody->setLinearDamping(0.0f);
+	multiBody->setAngularDamping(0.0f);
 
 	// 初始化的位置
 	btScalar initDegree = 75.0;
+	initDegree = 0;
 	btQuaternion initQ(0, 0, initDegree);
 	multiBody->setJointPosMultiDof(0, initQ);
+	for (int i = 0; i < multiBody->getNumDofs(); i++)
+	{
+		multiBody->setJointVel(i, 0.6);
+	}
 
 	return multiBody;
 }
@@ -190,6 +217,23 @@ void InverseDynamicsTest::createMultiBodyColliders(btMultiBodyDynamicsWorld *wor
 
 		world->addCollisionObject(collider);
 	}
+}
+
+void InverseDynamicsTest::calcForceWithKenimaticData(btInverseDynamics::MultiBodyTree* inverseModel)
+{
+
+}
+
+btInverseDynamics::MultiBodyTree* InverseDynamicsTest::createInverseDynamicModel(btMultiBody *body)
+{
+	btInverseDynamics::btMultiBodyTreeCreator creator;
+	if (-1 == creator.createFromBtMultiBody(body))
+	{
+		b3Error("error creating tree\n");
+		return 0;
+	}
+	btInverseDynamics::MultiBodyTree* tree = btInverseDynamics::CreateMultiBodyTree(creator);
+	return tree;
 }
 
 void InverseDynamicsTest::calcBoxShapeInteria(const btVector3 &halfExtents, btScalar mass, btVector3 &interia)
