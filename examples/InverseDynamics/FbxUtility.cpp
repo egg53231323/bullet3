@@ -17,8 +17,8 @@ namespace FbxUtility {
 			return false;
 		}
 
-		FbxIOSettings * ioSettings = sdkManager->GetIOSettings();
-		FbxImporter* importer = FbxImporter::Create(sdkManager, "");
+		FbxIOSettings *ioSettings = sdkManager->GetIOSettings();
+		FbxImporter *importer = FbxImporter::Create(sdkManager, "");
 		if (!importer->Initialize(fbxFilePath, -1, ioSettings))
 		{
 			importer->Destroy();
@@ -32,7 +32,21 @@ namespace FbxUtility {
 		return result;
 	}
 
-	void visitSkeletonNode(FbxNode *node, int parentSkeletonNodeIdx, std::vector<SkeletonNode> &skeletonNodes)
+	bool exportSceneToFile(const char *fbxFilePath, FbxManager *sdkManager, FbxScene *scene)
+	{
+		FbxExporter *exporter = FbxExporter::Create(sdkManager, "");
+		if (!exporter->Initialize(fbxFilePath, 0, sdkManager->GetIOSettings()))
+		{
+			return false;
+		}
+		FbxIOSettings *ioSettings = sdkManager->GetIOSettings();
+		ioSettings->SetBoolProp(EXP_FBX_ANIMATION, false);
+		bool res = exporter->Export(scene);
+		exporter->Destroy();
+		return res;
+	}
+
+	void visitSkeletonNode(FbxNode *node, int parentSkeletonNodeIdx, std::vector<SkeletonNode> &skeletonNodes, const std::vector<SkeletonNode> *modifySkeletonNodes)
 	{
 		FbxString name = node->GetName();
 
@@ -40,6 +54,9 @@ namespace FbxUtility {
 		SkeletonNode &skeletonNode = skeletonNodes.back();
 		skeletonNode.idx = (int)(skeletonNodes.size() - 1);
 		skeletonNode.parentIdx = parentSkeletonNodeIdx;
+
+		skeletonNode.name = node->GetName();
+
 		FbxDouble3 translation = node->LclTranslation.Get();
 		FbxDouble3 rotation = node->LclRotation.Get();
 		FbxDouble3 scale = node->LclScaling.Get();
@@ -49,9 +66,21 @@ namespace FbxUtility {
 			skeletonNode.rotation[i] = rotation[i];
 			skeletonNode.scale[i] = scale[i];
 		}
+		if (NULL != modifySkeletonNodes)
+		{
+			const SkeletonNode &targetNode = (*modifySkeletonNodes)[skeletonNode.idx];
+			// node->LclTranslation.Set(FbxDouble3(targetNode.translation[0], targetNode.translation[1], targetNode.translation[2]));
+			// node->LclRotation.Set(FbxDouble3(targetNode.rotation[0], targetNode.rotation[1], targetNode.rotation[2]));
+
+			if (name == "Bip01 L Thigh")
+			{
+				node->LclTranslation.Set(FbxDouble3(skeletonNode.translation[0], skeletonNode.translation[1], skeletonNode.translation[2] / 2));
+				node->LclRotation.Set(FbxDouble3(0, 0, 0));
+			}
+		}
 	}
 
-	void DFTSkeleton(FbxNode *node, int parentSkeletonNodeIdx, std::vector<SkeletonNode> &skeletonNodes)
+	void DFTSkeleton(FbxNode *node, int parentSkeletonNodeIdx, std::vector<SkeletonNode> &skeletonNodes, const std::vector<SkeletonNode> *modifySkeletonNodes)
 	{
 		FbxNodeAttribute *attributeNode = node->GetNodeAttribute();
 		if (NULL == attributeNode || FbxNodeAttribute::eSkeleton != attributeNode->GetAttributeType())
@@ -59,17 +88,17 @@ namespace FbxUtility {
 			return;
 		}
 
-		visitSkeletonNode(node, parentSkeletonNodeIdx, skeletonNodes);
+		visitSkeletonNode(node, parentSkeletonNodeIdx, skeletonNodes, modifySkeletonNodes);
 		int nodeIdx = skeletonNodes.back().idx;
 
 		int childCount = node->GetChildCount();
 		for (int i = 0; i < childCount; i++)
 		{
-			DFTSkeleton(node->GetChild(i), nodeIdx, skeletonNodes);
+			DFTSkeleton(node->GetChild(i), nodeIdx, skeletonNodes, modifySkeletonNodes);
 		}
 	}
 
-	bool loadSceneData(FbxScene *scene, std::vector<SkeletonNode> &skeletonNodes)
+	bool processSceneData(FbxScene *scene, std::vector<SkeletonNode> &skeletonNodes, const std::vector<SkeletonNode> *modifySkeletonNodes)
 	{
 		if (NULL == scene)
 		{
@@ -87,18 +116,25 @@ namespace FbxUtility {
 				continue;
 			}
 			FbxNodeAttribute::EType attributeType = attributeNode->GetAttributeType();
-			if (FbxNodeAttribute::eSkeleton == attributeNode->GetAttributeType())
+			if (FbxNodeAttribute::eSkeleton == attributeType)
 			{
-				DFTSkeleton(childNode, -1, skeletonNodes);
+				DFTSkeleton(childNode, -1, skeletonNodes, modifySkeletonNodes);
 				// only process one now
 				break;
+			}
+			else
+			{
+				if (NULL != modifySkeletonNodes && FbxNodeAttribute::eMesh == attributeType)
+				{
+					scene->RemoveNode(childNode);
+				}
 			}
 		}
 
 		return true;
 	}
 
-	bool FbxUtility::loadFbxFile(const char *fbxFilePath, std::vector<SkeletonNode> &skeletonNodes)
+	bool loadFbxFile(const char *fbxFilePath, std::vector<SkeletonNode> &skeletonNodes)
 	{
 		FbxManager *sdkManager = FbxManager::Create();
 
@@ -110,9 +146,37 @@ namespace FbxUtility {
 		bool result = false;
 		if (importFileToScene(fbxFilePath, sdkManager, scene))
 		{
-			if (loadSceneData(scene, skeletonNodes))
+			if (processSceneData(scene, skeletonNodes, NULL))
 			{
 				result = true;
+			}
+		}
+
+		scene->Destroy();
+		sdkManager->Destroy();
+
+		return result;
+	}
+
+	bool transFbxFile(const char *fbxFilePath, const char *dstFbxFilePath, const std::vector<SkeletonNode> &skeletonNodes)
+	{
+		FbxManager *sdkManager = FbxManager::Create();
+
+		FbxIOSettings * ioSettings = FbxIOSettings::Create(sdkManager, IOSROOT);
+		sdkManager->SetIOSettings(ioSettings);
+
+		FbxScene *scene = FbxScene::Create(sdkManager, "");
+
+		bool result = false;
+		if (importFileToScene(fbxFilePath, sdkManager, scene))
+		{
+			std::vector<SkeletonNode> tempNodes;
+			if (processSceneData(scene, tempNodes, &skeletonNodes))
+			{
+				if (exportSceneToFile(dstFbxFilePath, sdkManager, scene))
+				{
+					result = true;
+				}
 			}
 		}
 
