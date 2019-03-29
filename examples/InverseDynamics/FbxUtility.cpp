@@ -1,13 +1,6 @@
 #include "FbxUtility.h"
 #include <fbxsdk.h>
 
-SkeletonNode::SkeletonNode() : idx(0), parentIdx(0)
-{
-	translation[0] = translation[1] = translation[2] = 0;
-	rotation[0] = rotation[1] = rotation[2] = 0;
-	scale[0] = scale[1] = scale[2] = 1;
-}
-
 namespace FbxUtility {
 
 	bool importFileToScene(const char *fbxFilePath, FbxManager *sdkManager, FbxScene *scene)
@@ -60,30 +53,31 @@ namespace FbxUtility {
 		FbxDouble3 translation = node->LclTranslation.Get();
 		FbxDouble3 rotation = node->LclRotation.Get();
 		FbxDouble3 scale = node->LclScaling.Get();
+		// todo WorldTransform = ParentWorldTransform * T * Roff * Rp * Rpre * R * Rpost -1 * Rp -1 * Soff * Sp * S * Sp -1
+		// È«²¿ËãÒ»±é£¿
+		FbxDouble3 rotationPre = node->PreRotation.Get();
 		for (int i = 0; i < 3; ++i)
 		{
 			skeletonNode.translation[i] = translation[i];
 			skeletonNode.rotation[i] = rotation[i];
 			skeletonNode.scale[i] = scale[i];
+
+			skeletonNode.rotationPre[i] = rotationPre[i];
 		}
 		if (NULL != modifySkeletonNodes)
 		{
 			const SkeletonNode &targetNode = (*modifySkeletonNodes)[skeletonNode.idx];
-			// node->LclTranslation.Set(FbxDouble3(targetNode.translation[0], targetNode.translation[1], targetNode.translation[2]));
-			// node->LclRotation.Set(FbxDouble3(targetNode.rotation[0], targetNode.rotation[1], targetNode.rotation[2]));
-
-			if (name == "Bip01 L Thigh")
-			{
-				node->LclTranslation.Set(FbxDouble3(skeletonNode.translation[0], skeletonNode.translation[1], skeletonNode.translation[2] / 2));
-				node->LclRotation.Set(FbxDouble3(0, 0, 0));
-			}
+			node->LclTranslation.Set(FbxDouble3(targetNode.translation[0], targetNode.translation[1], targetNode.translation[2]));
+			node->LclRotation.Set(FbxDouble3(targetNode.rotation[0], targetNode.rotation[1], targetNode.rotation[2]));
+			node->PreRotation.Set(FbxDouble3(targetNode.rotationPre[0], targetNode.rotation[1], targetNode.rotationPre[2]));
+			node->UpdatePivotsAndLimitsFromProperties();
 		}
 	}
 
 	void DFTSkeleton(FbxNode *node, int parentSkeletonNodeIdx, std::vector<SkeletonNode> &skeletonNodes, const std::vector<SkeletonNode> *modifySkeletonNodes)
 	{
 		FbxNodeAttribute *attributeNode = node->GetNodeAttribute();
-		if (NULL == attributeNode || FbxNodeAttribute::eSkeleton != attributeNode->GetAttributeType())
+		if (NULL == attributeNode || !(FbxNodeAttribute::eSkeleton == attributeNode->GetAttributeType() || std::string(node->GetName()) == std::string("Bip01")))
 		{
 			return;
 		}
@@ -121,6 +115,15 @@ namespace FbxUtility {
 				DFTSkeleton(childNode, -1, skeletonNodes, modifySkeletonNodes);
 				// only process one now
 				break;
+			}
+			else if (FbxNodeAttribute::eNull == attributeType)
+			{
+				if (std::string(childNode->GetName()) == std::string("Bip01"))
+				{
+					DFTSkeleton(childNode, -1, skeletonNodes, modifySkeletonNodes);
+					// only process one now
+					break;
+				}
 			}
 			else
 			{

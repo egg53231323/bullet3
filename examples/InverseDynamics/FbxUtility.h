@@ -2,19 +2,7 @@
 #define FBX_UTILITY_H
 
 #include <vector>
-#include <string>
-
-class SkeletonNode
-{
-public:
-	SkeletonNode();
-	std::string name;
-	int idx;
-	int parentIdx;
-	double translation[3];
-	double rotation[3];
-	double scale[3];
-};
+#include "SkeletonNode.h"
 
 namespace FbxUtility {
 	bool loadFbxFile(const char *fbxFilePath, std::vector<SkeletonNode> &skeletonNodes);
