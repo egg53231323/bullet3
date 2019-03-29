@@ -36,9 +36,14 @@ namespace SkeletonUtility
 		return rotation;
 	}
 
-	bool calcTransformInfo(const std::vector<SkeletonNode> &skeletonNodes, std::vector<btQuaternion> &nodeWorldToLocalRotations, std::vector<btQuaternion> &jointFrameRotations)
+	bool calcTransAnimation()
 	{
-		std::vector<btQuaternion> worldToLocalRotations;
+		return true;
+	}
+
+	bool calcTransformInfo(const std::vector<SkeletonNode> &skeletonNodes, std::vector<btQuaternion> &srcModelWorldToLocalRotations, std::vector<btQuaternion> &jointFrameRotations)
+	{
+		std::vector<btQuaternion> multiBodyWorldToLocalRotations;
 		int count = (int)skeletonNodes.size();
 		for (int i = 0; i < count; i++)
 		{
@@ -50,7 +55,7 @@ namespace SkeletonUtility
 				worldToLocal = skeletonNodeRotation(*parentNode) * worldToLocal;
 				node = parentNode;
 			}
-			nodeWorldToLocalRotations.push_back(worldToLocal);
+			srcModelWorldToLocalRotations.push_back(worldToLocal);
 		}
 
 		for (int i = 0; i < count; i++)
@@ -69,11 +74,11 @@ namespace SkeletonUtility
 			if (node.parentIdx >= 1)
 			{
 				// 有关节的骨骼开始偏移
-				worldToLocalRotations.push_back(nodeWorldToLocalRotations[node.parentIdx] * adjustXAxisRotation);
+				multiBodyWorldToLocalRotations.push_back(srcModelWorldToLocalRotations[node.parentIdx] * adjustXAxisRotation);
 			}
 			else
 			{
-				worldToLocalRotations.push_back(nodeWorldToLocalRotations[node.idx]);
+				multiBodyWorldToLocalRotations.push_back(srcModelWorldToLocalRotations[node.idx]);
 			}
 
 		}
@@ -83,7 +88,7 @@ namespace SkeletonUtility
 			const SkeletonNode &node = skeletonNodes[i];
 			if (node.parentIdx >= 1)
 			{
-				btQuaternion jointFrameRotation = worldToLocalRotations[node.parentIdx].inverse() * worldToLocalRotations[node.idx];
+				btQuaternion jointFrameRotation = multiBodyWorldToLocalRotations[node.parentIdx].inverse() * multiBodyWorldToLocalRotations[node.idx];
 				jointFrameRotations.push_back(jointFrameRotation);
 			}
 			else
