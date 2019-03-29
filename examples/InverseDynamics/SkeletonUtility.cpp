@@ -158,8 +158,8 @@ namespace SkeletonUtility
 
 		multiBody->setHasSelfCollision(true);
 
-		multiBody->setLinearDamping(0.0f);
-		multiBody->setAngularDamping(0.0f);
+		multiBody->setLinearDamping(0.1f);
+		multiBody->setAngularDamping(0.1f);
 
 		return multiBody;
 	}

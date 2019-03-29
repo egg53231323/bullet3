@@ -1,5 +1,10 @@
 #include "SkeletonNode.h"
 
+AnimationKey::AnimationKey() : time(0), value(0)
+{
+
+}
+
 SkeletonNode::SkeletonNode() : idx(0), parentIdx(0)
 {
 	translation[0] = translation[1] = translation[2] = 0;

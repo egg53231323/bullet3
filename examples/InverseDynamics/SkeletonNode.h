@@ -2,6 +2,16 @@
 #define SKELETON_NODE_H
 
 #include <string>
+#include <vector>
+
+typedef __int64 AnimationKeyTime;
+class AnimationKey
+{
+public:
+	AnimationKey();
+	AnimationKeyTime time;
+	double value;
+};
 
 class SkeletonNode
 {
@@ -15,6 +25,10 @@ public:
 	double scale[3];
 
 	double rotationPre[3];
+
+	std::vector<AnimationKey> animationT[3];
+	std::vector<AnimationKey> animationR[3];
+	std::vector<AnimationKey> animationS[3];
 
 	void setTranslation(const double &x, const double &y, const double &z);
 	void setRotation(const double &x, const double &y, const double &z);

@@ -39,6 +39,70 @@ namespace FbxUtility {
 		return res;
 	}
 
+
+	FbxAnimLayer* getAnimLayer(FbxScene *scene, int animStackIdx, int animLayerIdx)
+	{
+		if (NULL == scene)
+		{
+			return NULL;
+		}
+
+		FbxAnimLayer *animLayer = NULL;
+		int numAnimStack = scene->GetSrcObjectCount<FbxAnimStack>();
+		if (numAnimStack > 0 && animStackIdx < numAnimStack)
+		{
+			FbxAnimStack *animStack = scene->GetSrcObject<FbxAnimStack>(animStackIdx);
+			int numAnimLayer = animStack->GetMemberCount<FbxAnimLayer>();
+			if (numAnimLayer > 0 && animLayerIdx< numAnimLayer)
+			{
+				animLayer = animStack->GetMember<FbxAnimLayer>(animLayerIdx);
+			}
+		}
+		return animLayer;
+	}
+
+	void getAnimData(FbxAnimCurve *animCurve, std::vector<AnimationKey> &data)
+	{
+		if (NULL == animCurve)
+		{
+			return;
+		}
+		int count = animCurve->KeyGetCount();
+		if (count <= 0)
+		{
+			return;
+		}
+		
+		data.resize(count);
+		for (int i = 0; i < count; i++)
+		{
+			FbxAnimCurveKey key = animCurve->KeyGet(i);
+			AnimationKey &dstKey = data[i];
+			dstKey.time = key.GetTime().GetMilliSeconds();
+			dstKey.value = key.GetValue();
+		}
+	}
+
+	void getAnimFromNode(FbxNode *node, SkeletonNode &skeletonNode)
+	{
+		FbxAnimLayer *animLayer = getAnimLayer(node->GetScene(), 0, 0);
+		if (NULL == animLayer)
+		{
+			return;
+		}
+		getAnimData(node->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X), skeletonNode.animationT[0]);
+		getAnimData(node->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y), skeletonNode.animationT[1]);
+		getAnimData(node->LclTranslation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z), skeletonNode.animationT[2]);
+
+		getAnimData(node->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X), skeletonNode.animationR[0]);
+		getAnimData(node->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y), skeletonNode.animationR[1]);
+		getAnimData(node->LclRotation.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z), skeletonNode.animationR[2]);
+
+		getAnimData(node->LclScaling.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_X), skeletonNode.animationS[0]);
+		getAnimData(node->LclScaling.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Y), skeletonNode.animationS[1]);
+		getAnimData(node->LclScaling.GetCurve(animLayer, FBXSDK_CURVENODE_COMPONENT_Z), skeletonNode.animationS[2]);
+	}
+
 	void visitSkeletonNode(FbxNode *node, int parentSkeletonNodeIdx, std::vector<SkeletonNode> &skeletonNodes, const std::vector<SkeletonNode> *modifySkeletonNodes)
 	{
 		FbxString name = node->GetName();
@@ -47,7 +111,6 @@ namespace FbxUtility {
 		SkeletonNode &skeletonNode = skeletonNodes.back();
 		skeletonNode.idx = (int)(skeletonNodes.size() - 1);
 		skeletonNode.parentIdx = parentSkeletonNodeIdx;
-
 		skeletonNode.name = node->GetName();
 
 		FbxDouble3 translation = node->LclTranslation.Get();
@@ -64,6 +127,8 @@ namespace FbxUtility {
 
 			skeletonNode.rotationPre[i] = rotationPre[i];
 		}
+
+		getAnimFromNode(node, skeletonNode);
 		if (NULL != modifySkeletonNodes)
 		{
 			const SkeletonNode &targetNode = (*modifySkeletonNodes)[skeletonNode.idx];
