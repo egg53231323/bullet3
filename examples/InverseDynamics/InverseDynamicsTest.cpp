@@ -37,6 +37,7 @@ class InverseDynamicsTest : public CommonMultiBodyBase
 	btMultiBody* m_multiBody;
 	btInverseDynamics::MultiBodyTree* m_inverseModel;
 	int m_stepCount;
+	std::vector<SkeletonNode> m_skeletonNodes;
 
 public:
 	InverseDynamicsTest(struct GUIHelperInterface* helper);
@@ -142,13 +143,12 @@ void InverseDynamicsTest::initPhysics()
 	const btVector3 boneHalfExtents = btVector3(0.05, 0.4, 0.1);
 	if (useFBX)
 	{
-		std::vector<SkeletonNode> skeletonNodes;
-		FbxUtility::loadFbxFile("E:\\work\\motion\\nobody.FBX", skeletonNodes);
+		FbxUtility::loadFbxFile("E:\\work\\motion\\nobody.FBX", m_skeletonNodes);
 
-		preprocessSkeletonNodesForTest(skeletonNodes);
-		FbxUtility::transFbxFile("E:\\work\\motion\\nobody.FBX", "E:\\work\\motion\\nobody_trans.FBX", skeletonNodes);
+		preprocessSkeletonNodesForTest(m_skeletonNodes);
+		FbxUtility::transFbxFile("E:\\work\\motion\\nobody.FBX", "E:\\work\\motion\\nobody_trans.FBX", m_skeletonNodes);
 
-		m_multiBody = SkeletonUtility::createMultiBodyFromSkeletonNodes(skeletonNodes);
+		m_multiBody = SkeletonUtility::createMultiBodyFromSkeletonNodes(m_skeletonNodes);
 		SkeletonUtility::createMultiBodyColliders(m_dynamicsWorld, m_multiBody);
 	}
 	else
@@ -164,10 +164,15 @@ void InverseDynamicsTest::initPhysics()
 }
 
 void InverseDynamicsTest::stepSimulation(float deltaTime)
-{	
+{
+	m_stepCount++;
 	// step the simulation
 	if (m_dynamicsWorld)
 	{
+		btScalar degree = m_stepCount / 10.0;
+		float pos[4] = { btSin(SkeletonUtility::degreeToRad(degree)), 0, 0, btCos(SkeletonUtility::degreeToRad(degree)) };
+		m_multiBody->setJointPosMultiDof(0, pos);
+
 		bool enable = false;
 		if (enable)
 		{
@@ -188,6 +193,7 @@ void InverseDynamicsTest::stepSimulation(float deltaTime)
 			}
 		}
 		m_dynamicsWorld->stepSimulation(deltaTime);
+
 		// todo(thomas) check that this is correct:
 		// want to advance by 10ms, with 1ms timesteps
 

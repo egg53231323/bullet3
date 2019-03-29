@@ -1,6 +1,6 @@
 #include "SkeletonNode.h"
 
-AnimationKey::AnimationKey() : time(0), value(0)
+SkeletonAnimationKey::SkeletonAnimationKey() : time(0), value(0)
 {
 
 }

@@ -10,6 +10,11 @@ namespace SkeletonUtility
 	static const int Root_X_Rotation_Degree = -90;
 	static const bool Inverse_Rotation_When_Build = true; // todo world to local Ë³Ðò
 
+	JointAnimationKey::JointAnimationKey() : time(0), rotation(0, 0, 0, 1)
+	{
+
+	}
+
 	void calcBoxShapeInertia(const btVector3 &halfExtents, btScalar mass, btVector3 &inertia)
 	{
 		btBoxShape shape = btBoxShape(halfExtents);
@@ -36,8 +41,16 @@ namespace SkeletonUtility
 		return rotation;
 	}
 
-	bool calcTransAnimation()
+	bool calcTransAnimation(const std::vector<SkeletonNode> &skeletonNodes, const std::vector<btQuaternion> &srcModelWorldToLocalRotations, 
+		const std::vector<btQuaternion> &multiBodyWorldToLocalRotations, const std::vector<btQuaternion> &jointFrameRotations, 
+		std::vector<std::vector<JointAnimationKey> > &jointRotationAnimation)
 	{
+		int nodeCount = (int)skeletonNodes.size();
+		for (int i = 0; i < nodeCount; i++)
+		{
+			const SkeletonNode &skeletonNode = skeletonNodes[i];
+		}
+
 		return true;
 	}
 

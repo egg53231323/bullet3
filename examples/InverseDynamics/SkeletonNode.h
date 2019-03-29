@@ -4,12 +4,12 @@
 #include <string>
 #include <vector>
 
-typedef __int64 AnimationKeyTime;
-class AnimationKey
+typedef __int64 SkeletonAnimationKeyTime;
+class SkeletonAnimationKey
 {
 public:
-	AnimationKey();
-	AnimationKeyTime time;
+	SkeletonAnimationKey();
+	SkeletonAnimationKeyTime time;
 	double value;
 };
 
@@ -26,9 +26,9 @@ public:
 
 	double rotationPre[3];
 
-	std::vector<AnimationKey> animationT[3];
-	std::vector<AnimationKey> animationR[3];
-	std::vector<AnimationKey> animationS[3];
+	std::vector<SkeletonAnimationKey> animationT[3];
+	std::vector<SkeletonAnimationKey> animationR[3];
+	std::vector<SkeletonAnimationKey> animationS[3];
 
 	void setTranslation(const double &x, const double &y, const double &z);
 	void setRotation(const double &x, const double &y, const double &z);

@@ -61,7 +61,7 @@ namespace FbxUtility {
 		return animLayer;
 	}
 
-	void getAnimData(FbxAnimCurve *animCurve, std::vector<AnimationKey> &data)
+	void getAnimData(FbxAnimCurve *animCurve, std::vector<SkeletonAnimationKey> &data)
 	{
 		if (NULL == animCurve)
 		{
@@ -77,7 +77,7 @@ namespace FbxUtility {
 		for (int i = 0; i < count; i++)
 		{
 			FbxAnimCurveKey key = animCurve->KeyGet(i);
-			AnimationKey &dstKey = data[i];
+			SkeletonAnimationKey &dstKey = data[i];
 			dstKey.time = key.GetTime().GetMilliSeconds();
 			dstKey.value = key.GetValue();
 		}

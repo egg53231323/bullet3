@@ -11,6 +11,14 @@ class btMultiBodyDynamicsWorld;
 
 namespace SkeletonUtility
 {
+	class JointAnimationKey
+	{
+	public:
+		JointAnimationKey();
+		SkeletonAnimationKeyTime time;
+		btQuaternion rotation;
+	};
+
 	void calcBoxShapeInertia(const btVector3 &halfExtents, btScalar mass, btVector3 &inertia);
 	btScalar degreeToRad(const btScalar &degree);
 	btQuaternion skeletonNodeRotation(const SkeletonNode &node);
