@@ -203,7 +203,7 @@ namespace SkeletonUtility
 			collider->setCollisionShape(box);
 			collider->setFriction(friction);
 
-			btQuaternion rotation = multiBody->getParentToLocalRot(i);
+			btQuaternion rotation = multiBody->getLink(i).m_zeroRotParentToThis;
 			if (Inverse_Rotation_When_Build)
 			{
 				// todo world to local Ë³Ðò
