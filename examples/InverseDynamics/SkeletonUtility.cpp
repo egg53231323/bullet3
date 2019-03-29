@@ -7,7 +7,8 @@ namespace SkeletonUtility
 {
 	static const btScalar Skeleton_Base_Fixed_Size = 0.4;
 	static const btScalar Skeleton_Fixed_Size = 0.4;
-	static const bool Add_90_Degree_On_Root_X = true;
+	static const int Root_X_Rotation_Degree = -90;
+	static const bool Inverse_Rotation_When_Build = true; // todo world to local 顺序
 
 	void calcBoxShapeInertia(const btVector3 &halfExtents, btScalar mass, btVector3 &inertia)
 	{
@@ -26,11 +27,11 @@ namespace SkeletonUtility
 		rotation.setEulerZYX(degreeToRad(node.rotation[2]), degreeToRad(node.rotation[1]), degreeToRad(node.rotation[0]));
 		btQuaternion rotationPre;
 		rotationPre.setEulerZYX(degreeToRad(node.rotationPre[2]), degreeToRad(node.rotationPre[1]), degreeToRad(node.rotationPre[0]));
-		rotation = rotationPre * rotation;
-		if (Add_90_Degree_On_Root_X && node.parentIdx < 0)
+		rotation = rotation * rotationPre;
+		if (node.parentIdx < 0)
 		{
 			// fbx文件里没找到这90度在哪
-			rotation = btQuaternion(btVector3(1, 0, 0), degreeToRad(90)) * rotation;
+			rotation = rotation * btQuaternion(btVector3(1, 0, 0), degreeToRad(Root_X_Rotation_Degree));
 		}
 		return rotation;
 	}
@@ -118,10 +119,10 @@ namespace SkeletonUtility
 
 		btQuaternion rotation = worldToLocalRotations[1]; // todo 这里用pelvis的rotation?
 
-		//multiBody->setBasePos(pos);
-		//multiBody->setWorldToBaseRot(rotation);
-		btTransform baseTransform = btTransform(rotation, pos);
-		multiBody->setBaseWorldTransform(baseTransform);
+		multiBody->setBasePos(pos);
+		multiBody->setWorldToBaseRot(rotation);
+		//btTransform baseTransform = btTransform(rotation.inverse(), pos);
+		//multiBody->setBaseWorldTransform(baseTransform);
 
 		bool disableParentCollision = true; // todo， what mean
 
@@ -132,15 +133,25 @@ namespace SkeletonUtility
 		{
 			const SkeletonNode &curNode = skeletonNodes[i];
 			const SkeletonNode &parentNode = skeletonNodes[curNode.parentIdx];
-			//multiBody->setupRevolute(i, mass, inertiaDiag, i - 1, btQuaternion(0, 0, 0, 1), hingeJointAxis, parentComToCurrentPivot, currentPivotToCurrentCom, disableParentCollision);
 			btVector3 curTranslation = btVector3(curNode.translation[0], curNode.translation[1], curNode.translation[2]);
 			btVector3 parentTranslation = btVector3(parentNode.translation[0], parentNode.translation[1], parentNode.translation[2]);
 			btScalar skeletonLength = curTranslation.length();
 			btScalar parentSkeletonLength = parentTranslation.length();
 			btVector3 inertiaDiag;
 			calcBoxShapeInertia(btVector3(skeletonLength / 2, skeletonFixedSize / 2, skeletonFixedSize / 2), mass, inertiaDiag);
-			multiBody->setupSpherical(i - startIdxOffset, mass, inertiaDiag, parentNode.idx - startIdxOffset, jointFrameRotations[i],
+			btQuaternion jointFrameRotation = jointFrameRotations[i];
+			if (Inverse_Rotation_When_Build)
+			{
+				// todo world to local 顺序
+				jointFrameRotation = jointFrameRotation.inverse();
+			}
+			multiBody->setupSpherical(i - startIdxOffset, mass, inertiaDiag, parentNode.idx - startIdxOffset, jointFrameRotation,
 				btVector3(parentSkeletonLength / 2, 0, 0), btVector3(skeletonLength / 2, 0, 0), disableParentCollision);
+
+			/*
+			multiBody->setupRevolute(i - startIdxOffset, mass, inertiaDiag, parentNode.idx - startIdxOffset, 
+				jointFrameRotations[i], hingeJointAxis, btVector3(parentSkeletonLength / 2, 0, 0), btVector3(skeletonLength / 2, 0, 0), disableParentCollision);
+				*/
 		}
 
 		multiBody->finalizeMultiDof();
@@ -192,7 +203,13 @@ namespace SkeletonUtility
 			collider->setCollisionShape(box);
 			collider->setFriction(friction);
 
-			btTransform curRotationTransform = btTransform(multiBody->getParentToLocalRot(i));
+			btQuaternion rotation = multiBody->getParentToLocalRot(i);
+			if (Inverse_Rotation_When_Build)
+			{
+				// todo world to local 顺序
+				rotation = rotation.inverse();
+			}
+			btTransform curRotationTransform = btTransform(rotation);
 			btTransform curCOMTransform = curRotationTransform * btTransform(btQuaternion(0, 0, 0, 1), btVector3(halfSkeletonLength, 0, 0));
 			btTransform curEndTransform = curRotationTransform * btTransform(btQuaternion(0, 0, 0, 1), btVector3(halfSkeletonLength * 2, 0, 0));
 

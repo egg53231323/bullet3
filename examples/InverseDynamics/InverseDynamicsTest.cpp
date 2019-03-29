@@ -36,6 +36,7 @@ class InverseDynamicsTest : public CommonMultiBodyBase
 {
 	btMultiBody* m_multiBody;
 	btInverseDynamics::MultiBodyTree* m_inverseModel;
+	int m_stepCount;
 
 public:
 	InverseDynamicsTest(struct GUIHelperInterface* helper);
@@ -63,13 +64,29 @@ public:
 
 InverseDynamicsTest::InverseDynamicsTest(struct GUIHelperInterface* helper)
 	: CommonMultiBodyBase(helper),
-	m_multiBody(0)
+	m_multiBody(0),
+	m_stepCount(0)
 {
 }
 
 InverseDynamicsTest::~InverseDynamicsTest()
 {
 
+}
+
+void getSubNodes(std::vector<SkeletonNode> &skeletonNodes, int count)
+{
+	int maxCount = (int)skeletonNodes.size();
+	if (count > maxCount || count < 0)
+	{
+		return;
+	}
+	std::vector<SkeletonNode> temp;
+	for (int i = 0; i < count; i++)
+	{
+		temp.push_back(skeletonNodes[i]);
+	}
+	skeletonNodes.swap(temp);
 }
 
 bool InverseDynamicsTest::preprocessSkeletonNodesForTest(std::vector<SkeletonNode> &skeletonNodes)
@@ -147,8 +164,7 @@ void InverseDynamicsTest::initPhysics()
 }
 
 void InverseDynamicsTest::stepSimulation(float deltaTime)
-{
-	return;
+{	
 	// step the simulation
 	if (m_dynamicsWorld)
 	{
