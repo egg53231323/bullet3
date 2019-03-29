@@ -30,222 +30,7 @@
 
 #include <vector>
 #include "FbxUtility.h"
-
-static const btScalar Skeleton_Base_Fixed_Size = 0.4;
-static const btScalar Skeleton_Fixed_Size = 0.4;
-
-bool modifyTranslationToX(std::vector<SkeletonNode> &skeletonNodes)
-{
-	int nodeCount = skeletonNodes.size();
-	for (int i = 2; i < nodeCount; i++)
-	{
-		SkeletonNode &curNode = skeletonNodes[i];
-		btVector3 srcTranslation = btVector3(curNode.translation[0], curNode.translation[1], curNode.translation[2]);
-		btVector3 dstTranslation = btVector3(srcTranslation.length(), 0, 0);
-		btQuaternion quanternionA;
-		quanternionA.setEulerZYX(curNode.rotation[2], curNode.rotation[1], curNode.rotation[0]);
-
-		btQuaternion quanternionB = shortestArcQuat(dstTranslation, srcTranslation);
-		btQuaternion dstQuanternion = quanternionA * quanternionB;
-
-		curNode.translation[0] = dstTranslation.x();
-		curNode.translation[1] = dstTranslation.y();
-		curNode.translation[2] = dstTranslation.z();
-		dstQuanternion.getEulerZYX(curNode.rotation[2], curNode.rotation[1], curNode.rotation[0]);
-	}
-	return true;
-}
-
-void calcBoxShapeInertia(const btVector3 &halfExtents, btScalar mass, btVector3 &inertia)
-{
-	btBoxShape shape = btBoxShape(halfExtents);
-	shape.calculateLocalInertia(mass, inertia);
-}
-
-btScalar degreeToRad(const btScalar &degree)
-{
-	return degree * SIMD_PI / 180;
-}
-
-btQuaternion skeletonNodeRotation(const SkeletonNode &node)
-{
-	btQuaternion worldToLocal;
-	worldToLocal.setEulerZYX(degreeToRad(node.rotation[2]), degreeToRad(node.rotation[1]), degreeToRad(node.rotation[0]));
-	return worldToLocal;
-}
-
-bool calcTransformInfo(const std::vector<SkeletonNode> &skeletonNodes, std::vector<btQuaternion> &nodeWorldToLocalRotations, std::vector<btQuaternion> &jointFrameRotations)
-{
-	std::vector<btQuaternion> worldToLocalRotations;
-	std::vector<btQuaternion> nodeAdjustXAxisRotations;
-	int count = (int)skeletonNodes.size();
-	for (int i = 0; i < count; i++)
-	{
-		const SkeletonNode *node = &skeletonNodes[i];
-		btQuaternion worldToLocal = skeletonNodeRotation(*node);
-		while (node->parentIdx >= 0)
-		{
-			const SkeletonNode *parentNode = &skeletonNodes[node->parentIdx];
-			worldToLocal = skeletonNodeRotation(*parentNode) * worldToLocal;
-			node = parentNode;
-		}
-		nodeWorldToLocalRotations.push_back(worldToLocal);
-	}
-
-	for (int i = 0; i < count; i++)
-	{
-		const SkeletonNode &node = skeletonNodes[i];
-		btVector3 toTranslation = btVector3(node.translation[0], node.translation[1], node.translation[2]);
-		btVector3 fromTranslation = btVector3(toTranslation.length(), 0, 0);
-		btScalar angle = fromTranslation.angle(toTranslation);
-		btVector3 axis = fromTranslation.cross(toTranslation);
-		btQuaternion adjustXAxisRotation = btQuaternion(0, 0, 0, 1);
-		if (axis.length() > 0.0)
-		{
-			adjustXAxisRotation = btQuaternion(axis, angle);
-		}
-		
-		nodeAdjustXAxisRotations.push_back(adjustXAxisRotation);
-		if (node.parentIdx >= 1)
-		{
-			worldToLocalRotations.push_back(nodeWorldToLocalRotations[node.parentIdx] * adjustXAxisRotation);
-		}
-		else
-		{
-			worldToLocalRotations.push_back(btQuaternion(0, 0, 0, 1));
-		}
-		
-	}
-
-	for (int i = 0; i < count; i++)
-	{
-		const SkeletonNode &node = skeletonNodes[i];
-		if (node.parentIdx >= 1)
-		{	
-			btQuaternion jointFrameRotation = worldToLocalRotations[node.parentIdx].inverse() * worldToLocalRotations[node.idx];
-			jointFrameRotations.push_back(jointFrameRotation);
-		}
-		else
-		{
-			// ??
-			jointFrameRotations.push_back(btQuaternion(0, 0, 0, 1));
-		}
-	}
-	return true;
-}
-
-btMultiBody* createMultiBodyFromSkeletonNodes(const std::vector<SkeletonNode> &skeletonNodes)
-{
-	int skeletonNodesCount = skeletonNodes.size();
-	if (skeletonNodesCount < 2)
-	{
-		return NULL;
-	}
-
-	std::vector<btQuaternion> worldToLocalRotations, jointFrameRotations;
-	calcTransformInfo(skeletonNodes, worldToLocalRotations, jointFrameRotations);
-
-	int numLinks = skeletonNodesCount - 2;
-	btScalar mass = 1.0;
-	btVector3 baseInertia; // todo，这是算的对角线转动惯量？？
-	calcBoxShapeInertia(btVector3(Skeleton_Base_Fixed_Size / 2, Skeleton_Base_Fixed_Size / 2, Skeleton_Base_Fixed_Size / 2), mass, baseInertia);
-
-	bool fixedBase = true;
-	bool canSleep = false; // todo， what mean
-	btMultiBody* multiBody = new btMultiBody(numLinks, mass, baseInertia, fixedBase, canSleep);
-	const SkeletonNode &rootNode = skeletonNodes[0];
-	btVector3 pos = btVector3(rootNode.translation[0], rootNode.translation[1], rootNode.translation[2]);
-
-	btQuaternion rotation = worldToLocalRotations[1]; // todo 这里用pelvis的rotation?
-	btTransform baseTransform = btTransform(rotation, pos);
-
-	multiBody->setBasePos(pos);
-	multiBody->setWorldToBaseRot(rotation);
-	// multiBody->setBaseWorldTransform(baseTransform);
-
-	bool disableParentCollision = true; // todo， what mean
-
-	btVector3 hingeJointAxis(1, 0, 0);
-	int startIdxOffset = 2;
-	btScalar skeletonFixedSize = Skeleton_Fixed_Size;
-	for (int i = startIdxOffset; i < skeletonNodesCount; ++i)
-	{
-		const SkeletonNode &curNode = skeletonNodes[i];
-		const SkeletonNode &parentNode = skeletonNodes[curNode.parentIdx];
-		//multiBody->setupRevolute(i, mass, inertiaDiag, i - 1, btQuaternion(0, 0, 0, 1), hingeJointAxis, parentComToCurrentPivot, currentPivotToCurrentCom, disableParentCollision);
-		btVector3 curTranslation = btVector3(curNode.translation[0], curNode.translation[1], curNode.translation[2]);
-		btVector3 parentTranslation = btVector3(parentNode.translation[0], parentNode.translation[1], parentNode.translation[2]);
-		btScalar skeletonLength = curTranslation.length();
-		btScalar parentSkeletonLength = parentTranslation.length();
-		btVector3 inertiaDiag;
-		calcBoxShapeInertia(btVector3(skeletonLength / 2, skeletonFixedSize / 2, skeletonFixedSize / 2), mass, inertiaDiag);
-		multiBody->setupSpherical(i - startIdxOffset, mass, inertiaDiag, parentNode.idx - startIdxOffset, jointFrameRotations[i],
-			btVector3(parentSkeletonLength / 2, 0, 0), btVector3(skeletonLength / 2, 0, 0), disableParentCollision);
-	}
-
-	multiBody->finalizeMultiDof();
-
-	multiBody->setHasSelfCollision(true);
-
-	multiBody->setLinearDamping(0.0f);
-	multiBody->setAngularDamping(0.0f);
-
-	return multiBody;
-}
-
-
-void createMultiBodyColliders(btMultiBodyDynamicsWorld *world, btMultiBody *multiBody)
-{
-	const btQuaternion &baseRotation = multiBody->getWorldToBaseRot();
-	const btVector3 &basePos = multiBody->getBasePos();
-	btBoxShape *baseBox = new btBoxShape(btVector3(Skeleton_Base_Fixed_Size / 2, Skeleton_Base_Fixed_Size / 2, Skeleton_Base_Fixed_Size / 2));
-	btMultiBodyLinkCollider* baseCollider = new btMultiBodyLinkCollider(multiBody, -1);
-	// todo shape、 collider的内存??
-	baseCollider->setCollisionShape(baseBox);
-	// todo friction ??
-	float friction = 1;
-	baseCollider->setFriction(friction);
-	// todo demo这里rotate 角度用的负的？
-
-	btTransform baseTransform = btTransform(baseRotation, basePos);
-	baseCollider->setWorldTransform(baseTransform);
-
-	multiBody->setBaseCollider(baseCollider);
-
-	world->addCollisionObject(baseCollider);
-
-	btQuaternion curRotation = baseRotation;
-	btVector3 curPos = basePos;
-	int numLinks = multiBody->getNumLinks();
-	btScalar skeletonFixedSize = Skeleton_Fixed_Size;
-	
-	std::vector<btTransform> transforms;
-	transforms.push_back(baseTransform);
-	for (int i = 0; i < numLinks; ++i)
-	{
-		// todo shape、 collider的内存??
-		btVector3 halfSkeletonVector = multiBody->getLink(i).m_dVector;
-		btScalar halfSkeletonLength = halfSkeletonVector.length();
-		btBoxShape *box = new btBoxShape(btVector3(halfSkeletonLength, skeletonFixedSize / 2, skeletonFixedSize / 2));
-		btMultiBodyLinkCollider* collider = new btMultiBodyLinkCollider(multiBody, i);
-		collider->setCollisionShape(box);
-		collider->setFriction(friction);
-
-		btTransform curRotationTransform = btTransform(multiBody->getParentToLocalRot(i));
-		btTransform curCOMTransform = curRotationTransform * btTransform(btQuaternion(0, 0, 0, 1), btVector3(halfSkeletonLength, 0, 0));
-		btTransform curEndTransform = curRotationTransform * btTransform(btQuaternion(0, 0, 0, 1), btVector3(halfSkeletonLength * 2, 0, 0));
-
-		btTransform curCOMWorldTransform = transforms[multiBody->getParent(i) + 1] * curCOMTransform;
-		btTransform curEndWorldTransform = transforms[multiBody->getParent(i) + 1] * curEndTransform;
-		collider->setWorldTransform(curCOMWorldTransform);
-		transforms.push_back(curEndWorldTransform);
-
-		multiBody->getLink(i).m_collider = collider;
-
-		world->addCollisionObject(collider);
-	}
-}
-
+#include "SkeletonUtility.h"
 
 class InverseDynamicsTest : public CommonMultiBodyBase
 {
@@ -258,6 +43,7 @@ public:
 
 	virtual void initPhysics();
 	virtual void stepSimulation(float deltaTime);
+	bool preprocessSkeletonNodesForTest(std::vector<SkeletonNode> &skeletonNodes);
 	btMultiBody* createTestMultiBody(const btVector3 &boneHalfExtents);
 	void createMultiBodyColliders(btMultiBodyDynamicsWorld *world, btMultiBody *body, const btVector3 &boneHalfExtents);
 	btInverseDynamics::MultiBodyTree* createInverseDynamicModel(btMultiBody *body);
@@ -267,8 +53,10 @@ public:
 	{
 		float dist = 1;
 		float pitch = -20;
-		float yaw = 180;
-		float targetPos[3] = { 0, 30, 6 };
+		pitch = 0;
+		float yaw = 0;
+		// float targetPos[3] = { 0, 30, 6 };
+		float targetPos[3] = { 0, -30, 0 };
 		m_guiHelper->resetCamera(dist, yaw, pitch, targetPos[0], targetPos[1], targetPos[2]);
 	}
 };
@@ -284,14 +72,59 @@ InverseDynamicsTest::~InverseDynamicsTest()
 
 }
 
+bool InverseDynamicsTest::preprocessSkeletonNodesForTest(std::vector<SkeletonNode> &skeletonNodes)
+{
+	if (false)
+	{
+		std::vector<SkeletonNode> temp;
+		bool useSub = false;
+		if (useSub)
+		{
+			for (int i = 0; i < 6; i++)
+			{
+				temp.push_back(skeletonNodes[i]);
+			}
+		}
+		else
+		{
+			for (int i = 0; i < 6; i++)
+			{
+				SkeletonNode node;
+				node.idx = i;
+				node.parentIdx = i - 1;
+				if (i >= 2)
+				{
+					node.translation[2] = (i + 1) * 0.2;
+					node.rotation[0] = 45;
+				}
+				temp.push_back(node);
+			}
+		}
+		skeletonNodes.swap(temp);
+	}
+
+	skeletonNodes[0].translation[0] = 0;
+	skeletonNodes[0].translation[1] = 0;
+	skeletonNodes[0].translation[2] = 0;
+	skeletonNodes[0].rotation[0] = 0;
+	skeletonNodes[0].rotation[1] = 0;
+	skeletonNodes[0].rotation[2] = 0;
+	skeletonNodes[0].rotationPre[0] = 0;
+
+
+	skeletonNodes[1].translation[0] = 0;
+	skeletonNodes[1].translation[1] = 0;
+	skeletonNodes[1].translation[2] = 0;
+	skeletonNodes[1].rotation[0] = 0;
+	skeletonNodes[1].rotation[1] = 0;
+	skeletonNodes[1].rotation[2] = 0;
+
+	return true;
+}
+
 void InverseDynamicsTest::initPhysics()
 {
 	bool useFBX = true;
-
-	std::vector<SkeletonNode> skeletonNodes;
-	FbxUtility::loadFbxFile("E:\\work\\motion\\nobody.FBX", skeletonNodes);
-	// modifyTranslationToX(skeletonNodes);
-	// FbxUtility::transFbxFile("E:\\work\\motion\\nobody.FBX", "E:\\work\\motion\\nobody_trans.FBX", skeletonNodes);
 
 	int upAxis = 2;
 	m_guiHelper->setUpAxis(upAxis);
@@ -306,54 +139,14 @@ void InverseDynamicsTest::initPhysics()
 	const btVector3 boneHalfExtents = btVector3(0.05, 0.4, 0.1);
 	if (useFBX)
 	{
-		if (false)
-		{
-			std::vector<SkeletonNode> temp;
-			bool useSub = false;
-			if (useSub)
-			{
-				for (int i = 0; i < 6; i++)
-				{
-					temp.push_back(skeletonNodes[i]);
-				}
-			}
-			else
-			{
-				for (int i = 0; i < 6; i++)
-				{
-					SkeletonNode node;
-					node.idx = i;
-					node.parentIdx = i - 1;
-					if (i >= 2)
-					{
-						node.translation[2] = (i + 1) * 0.2;
-						node.rotation[0] = 45;
-					}
-					temp.push_back(node);
-				}
-			}
-			skeletonNodes.swap(temp);
-		}
-		if (true)
-		{
-			skeletonNodes[0].translation[0] = 0;
-			skeletonNodes[0].translation[1] = 0;
-			skeletonNodes[0].translation[2] = 3;
-			/*
-			skeletonNodes[0].rotation[0] = 0;
-			skeletonNodes[0].rotation[1] = 0;
-			skeletonNodes[0].rotation[2] = 0;
-			skeletonNodes[1].translation[0] = 0;
-			skeletonNodes[1].translation[1] = 0;
-			skeletonNodes[1].translation[2] = 0;
-			skeletonNodes[1].rotation[0] = 0;
-			skeletonNodes[1].rotation[1] = 0;
-			skeletonNodes[1].rotation[2] = 0;
-			*/
-		}
-		
-		m_multiBody = createMultiBodyFromSkeletonNodes(skeletonNodes);
-		::createMultiBodyColliders(m_dynamicsWorld, m_multiBody);
+		std::vector<SkeletonNode> skeletonNodes;
+		FbxUtility::loadFbxFile("E:\\work\\motion\\nobody.FBX", skeletonNodes);
+
+		preprocessSkeletonNodesForTest(skeletonNodes);
+		FbxUtility::transFbxFile("E:\\work\\motion\\nobody.FBX", "E:\\work\\motion\\nobody_trans.FBX", skeletonNodes);
+
+		m_multiBody = SkeletonUtility::createMultiBodyFromSkeletonNodes(skeletonNodes);
+		SkeletonUtility::createMultiBodyColliders(m_dynamicsWorld, m_multiBody);
 	}
 	else
 	{
@@ -405,7 +198,7 @@ btMultiBody* InverseDynamicsTest::createTestMultiBody(const btVector3 &boneHalfE
 	int numLinks = 5;
 	btScalar mass = 1.0;
 	btVector3 inertiaDiag; // todo，这是算的对角线转动惯量？？
-	calcBoxShapeInertia(boneHalfExtents, mass, inertiaDiag);
+	SkeletonUtility::calcBoxShapeInertia(boneHalfExtents, mass, inertiaDiag);
 
 	bool fixedBase = true;
 	bool canSleep = false; // todo， what mean
