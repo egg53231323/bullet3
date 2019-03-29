@@ -69,7 +69,7 @@ namespace FbxUtility {
 			const SkeletonNode &targetNode = (*modifySkeletonNodes)[skeletonNode.idx];
 			node->LclTranslation.Set(FbxDouble3(targetNode.translation[0], targetNode.translation[1], targetNode.translation[2]));
 			node->LclRotation.Set(FbxDouble3(targetNode.rotation[0], targetNode.rotation[1], targetNode.rotation[2]));
-			node->PreRotation.Set(FbxDouble3(targetNode.rotationPre[0], targetNode.rotation[1], targetNode.rotationPre[2]));
+			node->PreRotation.Set(FbxDouble3(targetNode.rotationPre[0], targetNode.rotationPre[1], targetNode.rotationPre[2]));
 			node->UpdatePivotsAndLimitsFromProperties();
 		}
 	}

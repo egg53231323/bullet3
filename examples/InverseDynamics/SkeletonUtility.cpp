@@ -7,6 +7,7 @@ namespace SkeletonUtility
 {
 	static const btScalar Skeleton_Base_Fixed_Size = 0.4;
 	static const btScalar Skeleton_Fixed_Size = 0.4;
+	static const bool Add_90_Degree_On_Root_X = true;
 
 	void calcBoxShapeInertia(const btVector3 &halfExtents, btScalar mass, btVector3 &inertia)
 	{
@@ -23,16 +24,20 @@ namespace SkeletonUtility
 	{
 		btQuaternion rotation;
 		rotation.setEulerZYX(degreeToRad(node.rotation[2]), degreeToRad(node.rotation[1]), degreeToRad(node.rotation[0]));
-		//btQuaternion rotationPre;
-		//rotationPre.setEulerZYX(degreeToRad(node.rotationPre[2]), degreeToRad(node.rotationPre[1]), degreeToRad(node.rotationPre[0]));
-		//rotation = rotationPre * rotation;
+		btQuaternion rotationPre;
+		rotationPre.setEulerZYX(degreeToRad(node.rotationPre[2]), degreeToRad(node.rotationPre[1]), degreeToRad(node.rotationPre[0]));
+		rotation = rotationPre * rotation;
+		if (Add_90_Degree_On_Root_X && node.parentIdx < 0)
+		{
+			// fbx文件里没找到这90度在哪
+			rotation = btQuaternion(btVector3(1, 0, 0), degreeToRad(90)) * rotation;
+		}
 		return rotation;
 	}
 
 	bool calcTransformInfo(const std::vector<SkeletonNode> &skeletonNodes, std::vector<btQuaternion> &nodeWorldToLocalRotations, std::vector<btQuaternion> &jointFrameRotations)
 	{
 		std::vector<btQuaternion> worldToLocalRotations;
-		std::vector<btQuaternion> nodeAdjustXAxisRotations;
 		int count = (int)skeletonNodes.size();
 		for (int i = 0; i < count; i++)
 		{
@@ -60,14 +65,14 @@ namespace SkeletonUtility
 				adjustXAxisRotation = btQuaternion(axis, angle);
 			}
 
-			nodeAdjustXAxisRotations.push_back(adjustXAxisRotation);
 			if (node.parentIdx >= 1)
 			{
+				// 有关节的骨骼开始偏移
 				worldToLocalRotations.push_back(nodeWorldToLocalRotations[node.parentIdx] * adjustXAxisRotation);
 			}
 			else
 			{
-				worldToLocalRotations.push_back(btQuaternion(0, 0, 0, 1));
+				worldToLocalRotations.push_back(nodeWorldToLocalRotations[node.idx]);
 			}
 
 		}
@@ -162,12 +167,11 @@ namespace SkeletonUtility
 		baseCollider->setFriction(friction);
 		// todo demo这里rotate 角度用的负的？
 
-		// btTransform baseTransform = btTransform(btQuaternion(0, btSin(degreeToRad(90) / 2), 0, btCos(degreeToRad(90) / 2)), basePos);
 		btTransform baseTransform = multiBody->getBaseWorldTransform();
+		baseCollider->setWorldTransform(baseTransform);
+
 		std::vector<btTransform> transforms;
 		transforms.push_back(baseTransform);
-
-		baseCollider->setWorldTransform(baseTransform);
 
 		multiBody->setBaseCollider(baseCollider);
 

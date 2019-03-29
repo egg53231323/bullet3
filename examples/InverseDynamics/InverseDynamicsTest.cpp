@@ -56,7 +56,7 @@ public:
 		pitch = 0;
 		float yaw = 0;
 		// float targetPos[3] = { 0, 30, 6 };
-		float targetPos[3] = { 0, -30, 0 };
+		float targetPos[3] = { 0, -60, 0 };
 		m_guiHelper->resetCamera(dist, yaw, pitch, targetPos[0], targetPos[1], targetPos[2]);
 	}
 };
@@ -74,51 +74,37 @@ InverseDynamicsTest::~InverseDynamicsTest()
 
 bool InverseDynamicsTest::preprocessSkeletonNodesForTest(std::vector<SkeletonNode> &skeletonNodes)
 {
+#if 1
+	int skeletonNodeCount = (int)skeletonNodes.size();
+
 	if (false)
 	{
-		std::vector<SkeletonNode> temp;
-		bool useSub = false;
-		if (useSub)
+		for (int i = 0; i < skeletonNodeCount; i++)
 		{
-			for (int i = 0; i < 6; i++)
+			SkeletonNode &node = skeletonNodes[i];
+			if (node.name == "Bip01 Spine")
 			{
-				temp.push_back(skeletonNodes[i]);
+				node.setRotation(0, 0, 0);
+			}
+			else if (node.name == "Bip01 L Thigh")
+			{
+				node.setRotation(0, 0, 0);
+			}
+			else if (node.name == "Bip01 R Thigh")
+			{
+				node.setRotation(0, 0, 0);
 			}
 		}
-		else
-		{
-			for (int i = 0; i < 6; i++)
-			{
-				SkeletonNode node;
-				node.idx = i;
-				node.parentIdx = i - 1;
-				if (i >= 2)
-				{
-					node.translation[2] = (i + 1) * 0.2;
-					node.rotation[0] = 45;
-				}
-				temp.push_back(node);
-			}
-		}
-		skeletonNodes.swap(temp);
 	}
 
-	skeletonNodes[0].translation[0] = 0;
-	skeletonNodes[0].translation[1] = 0;
-	skeletonNodes[0].translation[2] = 0;
-	skeletonNodes[0].rotation[0] = 0;
-	skeletonNodes[0].rotation[1] = 0;
-	skeletonNodes[0].rotation[2] = 0;
-	skeletonNodes[0].rotationPre[0] = 0;
 
+	skeletonNodes[0].setTranslation(0, 0, 0);
+	//skeletonNodes[0].setRotation(0, 0, 0);
+	//skeletonNodes[0].setRotationPre(0, 0, 0);
 
-	skeletonNodes[1].translation[0] = 0;
-	skeletonNodes[1].translation[1] = 0;
-	skeletonNodes[1].translation[2] = 0;
-	skeletonNodes[1].rotation[0] = 0;
-	skeletonNodes[1].rotation[1] = 0;
-	skeletonNodes[1].rotation[2] = 0;
-
+	//skeletonNodes[1].setTranslation(0, 0, 0);
+	//skeletonNodes[1].setRotation(0, 0, 0);
+#endif
 	return true;
 }
 
