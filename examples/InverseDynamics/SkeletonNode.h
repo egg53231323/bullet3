@@ -15,6 +15,11 @@ public:
 	double scale[3];
 
 	double rotationPre[3];
+
+	void setTranslation(const double &x, const double &y, const double &z);
+	void setRotation(const double &x, const double &y, const double &z);
+	void setScale(const double &x, const double &y, const double &z);
+	void setRotationPre(const double &x, const double &y, const double &z);
 };
 
 #endif  //SKELETON_NODE_H
