@@ -3,15 +3,7 @@
 
 #include <string>
 #include <vector>
-
-typedef __int64 SkeletonAnimationKeyTime;
-class SkeletonAnimationKey
-{
-public:
-	SkeletonAnimationKey();
-	SkeletonAnimationKeyTime time;
-	double value;
-};
+#include "AnimationUtility.h"
 
 class SkeletonNode
 {
@@ -26,14 +18,19 @@ public:
 
 	double rotationPre[3];
 
-	std::vector<SkeletonAnimationKey> animationT[3];
-	std::vector<SkeletonAnimationKey> animationR[3];
-	std::vector<SkeletonAnimationKey> animationS[3];
+	typedef double AnimValueType;
+	AnimationCurve<AnimValueType> animationT[3];
+	AnimationCurve<AnimValueType> animationR[3];
+	AnimationCurve<AnimValueType> animationS[3];
 
 	void setTranslation(const double &x, const double &y, const double &z);
 	void setRotation(const double &x, const double &y, const double &z);
 	void setScale(const double &x, const double &y, const double &z);
 	void setRotationPre(const double &x, const double &y, const double &z);
+
+	void getTranslationAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z);
+	void getRotaionAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z);
+	void getScaleAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z);
 };
 
 #endif  //SKELETON_NODE_H

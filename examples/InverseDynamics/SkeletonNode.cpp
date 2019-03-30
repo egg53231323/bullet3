@@ -1,10 +1,5 @@
 #include "SkeletonNode.h"
 
-SkeletonAnimationKey::SkeletonAnimationKey() : time(0), value(0)
-{
-
-}
-
 SkeletonNode::SkeletonNode() : idx(0), parentIdx(0)
 {
 	translation[0] = translation[1] = translation[2] = 0;
@@ -42,3 +37,23 @@ void SkeletonNode::setRotationPre(const double &x, const double &y, const double
 	rotationPre[2] = z;
 }
 
+void SkeletonNode::getTranslationAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z)
+{
+	x = animationT[0].getValue(time);
+	y = animationT[1].getValue(time);
+	z = animationT[2].getValue(time);
+}
+
+void SkeletonNode::getRotaionAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z)
+{
+	x = animationR[0].getValue(time);
+	y = animationR[1].getValue(time);
+	z = animationR[2].getValue(time);
+}
+
+void SkeletonNode::getScaleAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z)
+{
+	x = animationS[0].getValue(time);
+	y = animationS[1].getValue(time);
+	z = animationS[2].getValue(time);
+}

@@ -61,7 +61,7 @@ namespace FbxUtility {
 		return animLayer;
 	}
 
-	void getAnimData(FbxAnimCurve *animCurve, std::vector<SkeletonAnimationKey> &data)
+	void getAnimData(FbxAnimCurve *animCurve, AnimationCurve<SkeletonNode::AnimValueType> &data)
 	{
 		if (NULL == animCurve)
 		{
@@ -73,11 +73,12 @@ namespace FbxUtility {
 			return;
 		}
 		
-		data.resize(count);
+		std::vector<AnimationKey<SkeletonNode::AnimValueType> > &dataKeys = data.keys;
+		dataKeys.resize(count);
 		for (int i = 0; i < count; i++)
 		{
 			FbxAnimCurveKey key = animCurve->KeyGet(i);
-			SkeletonAnimationKey &dstKey = data[i];
+			AnimationKey<SkeletonNode::AnimValueType> &dstKey = dataKeys[i];
 			dstKey.time = key.GetTime().GetMilliSeconds();
 			dstKey.value = key.GetValue();
 		}
