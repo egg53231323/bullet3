@@ -47,9 +47,9 @@ void SkeletonNode::getTranslationAtTime(const AnimationKeyTime &time, AnimValueT
 		return;
 	}
 
-	x = animationT[0].getValue(time);
-	y = animationT[1].getValue(time);
-	z = animationT[2].getValue(time);
+	x = animationT[0].getValue(time, translation[0]);
+	y = animationT[1].getValue(time, translation[1]);
+	z = animationT[2].getValue(time, translation[2]);
 }
 
 void SkeletonNode::getRotaionAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z) const
@@ -62,9 +62,9 @@ void SkeletonNode::getRotaionAtTime(const AnimationKeyTime &time, AnimValueType 
 		return;
 	}
 
-	x = animationR[0].getValue(time);
-	y = animationR[1].getValue(time);
-	z = animationR[2].getValue(time);
+	x = animationR[0].getValue(time, rotation[0]);
+	y = animationR[1].getValue(time, rotation[1]);
+	z = animationR[2].getValue(time, rotation[2]);
 }
 
 void SkeletonNode::getScaleAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z) const
@@ -77,7 +77,7 @@ void SkeletonNode::getScaleAtTime(const AnimationKeyTime &time, AnimValueType &x
 		return;
 	}
 
-	x = animationS[0].getValue(time);
-	y = animationS[1].getValue(time);
-	z = animationS[2].getValue(time);
+	x = animationS[0].getValue(time, scale[0]);
+	y = animationS[1].getValue(time, scale[1]);
+	z = animationS[2].getValue(time, scale[2]);
 }

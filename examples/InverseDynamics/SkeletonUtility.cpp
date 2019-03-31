@@ -107,7 +107,8 @@ namespace SkeletonUtility
 		return true;
 	}
 
-	btMultiBody *createMultiBodyFromSkeletonNodes(const std::vector<SkeletonNode> &skeletonNodes, std::vector<btQuaternion> &jointFrameRotations)
+	btMultiBody *createMultiBodyFromSkeletonNodes(const std::vector<SkeletonNode> &skeletonNodes, 
+		std::vector<btQuaternion> &nodeWorldToLocalRotations, std::vector<btQuaternion> &jointFrameRotations)
 	{
 		int skeletonNodesCount = skeletonNodes.size();
 		if (skeletonNodesCount < 2)
@@ -115,8 +116,7 @@ namespace SkeletonUtility
 			return NULL;
 		}
 
-		std::vector<btQuaternion> worldToLocalRotations;
-		calcTransformInfo(skeletonNodes, worldToLocalRotations, jointFrameRotations);
+		calcTransformInfo(skeletonNodes, nodeWorldToLocalRotations, jointFrameRotations);
 
 		int numLinks = skeletonNodesCount - 2;
 		btScalar mass = 1.0;
@@ -129,7 +129,7 @@ namespace SkeletonUtility
 		const SkeletonNode &rootNode = skeletonNodes[0];
 		btVector3 pos = btVector3(rootNode.translation[0], rootNode.translation[1], rootNode.translation[2]);
 
-		btQuaternion rotation = worldToLocalRotations[1]; // todo 这里用pelvis的rotation?
+		btQuaternion rotation = nodeWorldToLocalRotations[1];  // todo 这里用pelvis的rotation?
 
 		multiBody->setBasePos(pos);
 		multiBody->setWorldToBaseRot(rotation);

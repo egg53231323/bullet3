@@ -11,6 +11,9 @@ public:
 	AnimationKey() : time(0), value()
 	{
 	}
+	AnimationKey(AnimationKeyTime t, T v) : time(t), value(v)
+	{
+	}
 	AnimationKeyTime time;
 	T value;
 };
@@ -24,12 +27,12 @@ public:
 	AnimationCurve() : keyInterpolateFunc(NULL), lastIdx(0) {}
 	AnimationCurve(interpolateFuncPtr func) : keyInterpolateFunc(func), lastIdx(0){}
 
-	T getValue(const AnimationKeyTime &time) const
+	T getValue(const AnimationKeyTime &time, const T &defaultValue) const
 	{
 		int count = (int)keys.size();
 		if (NULL == keyInterpolateFunc || count <= 0)
 		{
-			return T();
+			return defaultValue;
 		}
 		if (lastIdx > count)
 		{
@@ -58,6 +61,12 @@ public:
 		}
 
 		return keyInterpolateFunc(keys[idxA], keys[idxB], time);
+	}
+
+	void clear()
+	{
+		keys.clear();
+		lastIdx = 0;
 	}
 
 	std::vector<AnimationKey<T> > keys;
