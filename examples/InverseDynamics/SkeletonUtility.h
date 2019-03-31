@@ -17,10 +17,15 @@ namespace SkeletonUtility
 
 	btQuaternion skeletonNodeRotation(const SkeletonNode &node, const AnimationKeyTime time = AnimationUtility::Invalid_Time);
 
+	bool calcNodeWorldToLocalRotations(const std::vector<SkeletonNode> &skeletonNodes, 
+		std::vector<btQuaternion> &nodeWorldToLocalRotations, const AnimationKeyTime time = AnimationUtility::Invalid_Time);
+
 	bool calcTransformInfo(const std::vector<SkeletonNode> &skeletonNodes,
 						   std::vector<btQuaternion> &nodeWorldToLocalRotations,
 						   std::vector<btQuaternion> &jointFrameRotations,
 						   const AnimationKeyTime time = AnimationUtility::Invalid_Time);
+
+	bool calcJointRotationsAtTime(const std::vector<SkeletonNode> &skeletonNodes, const AnimationKeyTime &time, const std::vector<btQuaternion> &zeroJointRotations, std::vector<btQuaternion> &jointRotations);
 
 	btMultiBody *createMultiBodyFromSkeletonNodes(const std::vector<SkeletonNode> &skeletonNodes, 
 		std::vector<btQuaternion> &nodeWorldToLocalRotations, std::vector<btQuaternion> &jointFrameRotations);

@@ -16,7 +16,7 @@ namespace AnimationUtility
 		{
 			return b.value;
 		}
-		return T(a.value + (targetTime - a.time) / (b.time - a.time) * (b.value - a.value));
+		return T(a.value + double(targetTime - a.time) / double(b.time - a.time) * (b.value - a.value));
 	}
 
 	float interpolateFuncFloat(const AnimationKey<float> &a, const AnimationKey<float> &b, const AnimationKeyTime &targetTime)

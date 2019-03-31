@@ -69,6 +69,11 @@ public:
 		lastIdx = 0;
 	}
 
+	void addKey(const AnimationKeyTime &time, const T &value)
+	{
+		keys.push_back(AnimationKey<T>(time, value));
+	}
+
 	std::vector<AnimationKey<T> > keys;
 
 private:

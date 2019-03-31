@@ -39,7 +39,7 @@ namespace SkeletonUtility
 		return rotation;
 	}
 
-	bool calcNodeWorldToLocalRotations(const std::vector<SkeletonNode> &skeletonNodes, std::vector<btQuaternion> &nodeWorldToLocalRotations, const AnimationKeyTime time = AnimationUtility::Invalid_Time)
+	bool calcNodeWorldToLocalRotations(const std::vector<SkeletonNode> &skeletonNodes, std::vector<btQuaternion> &nodeWorldToLocalRotations, const AnimationKeyTime time /* = AnimationUtility::Invalid_Time */)
 	{
 		int count = (int)skeletonNodes.size();
 		for (int i = 0; i < count; i++)
@@ -49,7 +49,7 @@ namespace SkeletonUtility
 			while (node->parentIdx >= 0)
 			{
 				const SkeletonNode *parentNode = &skeletonNodes[node->parentIdx];
-				worldToLocal = skeletonNodeRotation(*parentNode) * worldToLocal;
+				worldToLocal = skeletonNodeRotation(*parentNode, time) * worldToLocal;
 				node = parentNode;
 			}
 			nodeWorldToLocalRotations.push_back(worldToLocal);
@@ -66,7 +66,7 @@ namespace SkeletonUtility
 		for (int i = 0; i < count; i++)
 		{
 			const SkeletonNode &node = skeletonNodes[i];
-			btScalar x = 0, y = 0, z = 0;
+			SkeletonNode::AnimValueType x = 0, y = 0, z = 0;
 			node.getTranslationAtTime(time, x, y, z);
 			btVector3 toTranslation = btVector3(x, y, z);
 			btVector3 fromTranslation = btVector3(toTranslation.length(), 0, 0);
@@ -102,6 +102,36 @@ namespace SkeletonUtility
 			{
 				// ??
 				jointFrameRotations.push_back(btQuaternion(0, 0, 0, 1));
+			}
+		}
+		return true;
+	}
+
+	bool calcJointRotationsAtTime(const std::vector<SkeletonNode> &skeletonNodes, const AnimationKeyTime &time, const std::vector<btQuaternion> &zeroJointRotations, std::vector<btQuaternion> &jointRotations)
+	{
+		std::vector<btQuaternion> zero, cur;
+		calcNodeWorldToLocalRotations(skeletonNodes, zero);
+		calcNodeWorldToLocalRotations(skeletonNodes, cur, time);
+
+		int count = (int)skeletonNodes.size();
+		for (int i = 0; i < count; i++)
+		{
+			const SkeletonNode &node = skeletonNodes[i];
+			if (node.parentIdx > 0)
+			{
+				const SkeletonNode &parentNode = skeletonNodes[node.parentIdx];
+				btQuaternion baseRotation = skeletonNodeRotation(parentNode);
+				btQuaternion curRotation = skeletonNodeRotation(parentNode, time);
+				//baseRotation = zero[parentNode.idx];
+				//curRotation = cur[parentNode.idx];
+				const btQuaternion &curZeroJointRotaion = zeroJointRotations[i];
+				btQuaternion rotation = curZeroJointRotaion.inverse() * baseRotation.inverse() * curRotation * curZeroJointRotaion;
+				jointRotations.push_back(rotation);
+			}
+			else
+			{
+				// ?
+				jointRotations.push_back(btQuaternion(0, 0, 0, 1));
 			}
 		}
 		return true;
@@ -175,7 +205,6 @@ namespace SkeletonUtility
 
 		return multiBody;
 	}
-
 
 	void createMultiBodyColliders(btMultiBodyDynamicsWorld *world, btMultiBody *multiBody)
 	{
