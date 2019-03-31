@@ -21,10 +21,13 @@ namespace SkeletonUtility
 		return degree * SIMD_PI / 180;
 	}
 
-	btQuaternion skeletonNodeRotation(const SkeletonNode &node)
+	btQuaternion skeletonNodeRotation(const SkeletonNode &node, const AnimationKeyTime time /* = AnimationUtility::Invalid_Time */)
 	{
+		btScalar x = 0, y = 0, z = 0;
 		btQuaternion rotation;
-		rotation.setEulerZYX(degreeToRad(node.rotation[2]), degreeToRad(node.rotation[1]), degreeToRad(node.rotation[0]));
+		node.getRotaionAtTime(time, x, y, z);
+		rotation.setEulerZYX(degreeToRad(z), degreeToRad(y), degreeToRad(x));
+		
 		btQuaternion rotationPre;
 		rotationPre.setEulerZYX(degreeToRad(node.rotationPre[2]), degreeToRad(node.rotationPre[1]), degreeToRad(node.rotationPre[0]));
 		rotation = rotation * rotationPre;
@@ -36,35 +39,36 @@ namespace SkeletonUtility
 		return rotation;
 	}
 
-	bool calcTransAnimation(const std::vector<SkeletonNode> &skeletonNodes, const std::vector<btQuaternion> &srcModelWorldToLocalRotations, 
-		const std::vector<btQuaternion> &multiBodyWorldToLocalRotations, const std::vector<btQuaternion> &jointFrameRotations)
+	bool calcNodeWorldToLocalRotations(const std::vector<SkeletonNode> &skeletonNodes, std::vector<btQuaternion> &nodeWorldToLocalRotations, const AnimationKeyTime time = AnimationUtility::Invalid_Time)
 	{
-
-
-		return true;
-	}
-
-	bool calcTransformInfo(const std::vector<SkeletonNode> &skeletonNodes, std::vector<btQuaternion> &srcModelWorldToLocalRotations, std::vector<btQuaternion> &jointFrameRotations)
-	{
-		std::vector<btQuaternion> multiBodyWorldToLocalRotations;
 		int count = (int)skeletonNodes.size();
 		for (int i = 0; i < count; i++)
 		{
 			const SkeletonNode *node = &skeletonNodes[i];
-			btQuaternion worldToLocal = skeletonNodeRotation(*node);
+			btQuaternion worldToLocal = skeletonNodeRotation(*node, time);
 			while (node->parentIdx >= 0)
 			{
 				const SkeletonNode *parentNode = &skeletonNodes[node->parentIdx];
 				worldToLocal = skeletonNodeRotation(*parentNode) * worldToLocal;
 				node = parentNode;
 			}
-			srcModelWorldToLocalRotations.push_back(worldToLocal);
+			nodeWorldToLocalRotations.push_back(worldToLocal);
 		}
+		return true;
+	}
 
+	bool calcTransformInfo(const std::vector<SkeletonNode> &skeletonNodes, std::vector<btQuaternion> &nodeWorldToLocalRotations, std::vector<btQuaternion> &jointFrameRotations, const AnimationKeyTime time /* = AnimationUtility::Invalid_Time*/)
+	{
+		calcNodeWorldToLocalRotations(skeletonNodes, nodeWorldToLocalRotations, time);
+
+		std::vector<btQuaternion> multiBodyWorldToLocalRotations;
+		int count = (int)skeletonNodes.size();
 		for (int i = 0; i < count; i++)
 		{
 			const SkeletonNode &node = skeletonNodes[i];
-			btVector3 toTranslation = btVector3(node.translation[0], node.translation[1], node.translation[2]);
+			btScalar x = 0, y = 0, z = 0;
+			node.getTranslationAtTime(time, x, y, z);
+			btVector3 toTranslation = btVector3(x, y, z);
 			btVector3 fromTranslation = btVector3(toTranslation.length(), 0, 0);
 			btScalar angle = fromTranslation.angle(toTranslation);
 			btVector3 axis = fromTranslation.cross(toTranslation);
@@ -77,11 +81,11 @@ namespace SkeletonUtility
 			if (node.parentIdx >= 1)
 			{
 				// 有关节的骨骼开始偏移
-				multiBodyWorldToLocalRotations.push_back(srcModelWorldToLocalRotations[node.parentIdx] * adjustXAxisRotation);
+				multiBodyWorldToLocalRotations.push_back(nodeWorldToLocalRotations[node.parentIdx] * adjustXAxisRotation);
 			}
 			else
 			{
-				multiBodyWorldToLocalRotations.push_back(srcModelWorldToLocalRotations[node.idx]);
+				multiBodyWorldToLocalRotations.push_back(nodeWorldToLocalRotations[node.idx]);
 			}
 
 		}
@@ -103,7 +107,7 @@ namespace SkeletonUtility
 		return true;
 	}
 
-	btMultiBody* createMultiBodyFromSkeletonNodes(const std::vector<SkeletonNode> &skeletonNodes)
+	btMultiBody *createMultiBodyFromSkeletonNodes(const std::vector<SkeletonNode> &skeletonNodes, std::vector<btQuaternion> &jointFrameRotations)
 	{
 		int skeletonNodesCount = skeletonNodes.size();
 		if (skeletonNodesCount < 2)
@@ -111,7 +115,7 @@ namespace SkeletonUtility
 			return NULL;
 		}
 
-		std::vector<btQuaternion> worldToLocalRotations, jointFrameRotations;
+		std::vector<btQuaternion> worldToLocalRotations;
 		calcTransformInfo(skeletonNodes, worldToLocalRotations, jointFrameRotations);
 
 		int numLinks = skeletonNodesCount - 2;

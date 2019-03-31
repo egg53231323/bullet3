@@ -1,7 +1,10 @@
 #include "AnimationUtility.h"
+#include <limits>
 
 namespace AnimationUtility
 {
+	const AnimationKeyTime Invalid_Time = std::numeric_limits<AnimationKeyTime>::lowest();
+
 	template <typename T>
 	T defaultInterpolateFunc(const AnimationKey<T> &a, const AnimationKey<T> &b, const AnimationKeyTime &targetTime)
 	{

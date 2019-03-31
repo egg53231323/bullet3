@@ -37,22 +37,46 @@ void SkeletonNode::setRotationPre(const double &x, const double &y, const double
 	rotationPre[2] = z;
 }
 
-void SkeletonNode::getTranslationAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z)
+void SkeletonNode::getTranslationAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z) const
 {
+	if (time == AnimationUtility::Invalid_Time)
+	{
+		x = translation[0];
+		y = translation[1];
+		z = translation[2];
+		return;
+	}
+
 	x = animationT[0].getValue(time);
 	y = animationT[1].getValue(time);
 	z = animationT[2].getValue(time);
 }
 
-void SkeletonNode::getRotaionAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z)
+void SkeletonNode::getRotaionAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z) const
 {
+	if (time == AnimationUtility::Invalid_Time)
+	{
+		x = rotation[0];
+		y = rotation[1];
+		z = rotation[2];
+		return;
+	}
+
 	x = animationR[0].getValue(time);
 	y = animationR[1].getValue(time);
 	z = animationR[2].getValue(time);
 }
 
-void SkeletonNode::getScaleAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z)
+void SkeletonNode::getScaleAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z) const
 {
+	if (time == AnimationUtility::Invalid_Time)
+	{
+		x = scale[0];
+		y = scale[1];
+		z = scale[2];
+		return;
+	}
+
 	x = animationS[0].getValue(time);
 	y = animationS[1].getValue(time);
 	z = animationS[2].getValue(time);

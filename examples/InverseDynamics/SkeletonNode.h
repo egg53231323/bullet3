@@ -28,9 +28,9 @@ public:
 	void setScale(const double &x, const double &y, const double &z);
 	void setRotationPre(const double &x, const double &y, const double &z);
 
-	void getTranslationAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z);
-	void getRotaionAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z);
-	void getScaleAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z);
+	void getTranslationAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z) const;
+	void getRotaionAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z) const;
+	void getScaleAtTime(const AnimationKeyTime &time, AnimValueType &x, AnimValueType &y, AnimValueType &z) const;
 };
 
 #endif  //SKELETON_NODE_H

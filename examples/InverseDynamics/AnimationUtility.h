@@ -24,7 +24,7 @@ public:
 	AnimationCurve() : keyInterpolateFunc(NULL), lastIdx(0) {}
 	AnimationCurve(interpolateFuncPtr func) : keyInterpolateFunc(func), lastIdx(0){}
 
-	T getValue(const AnimationKeyTime &time)
+	T getValue(const AnimationKeyTime &time) const
 	{
 		int count = (int)keys.size();
 		if (NULL == keyInterpolateFunc || count <= 0)
@@ -64,11 +64,12 @@ public:
 
 private:
 	interpolateFuncPtr keyInterpolateFunc;
-	int lastIdx;
+	mutable int lastIdx;
 };
 
 namespace AnimationUtility
 {
+	extern const AnimationKeyTime Invalid_Time;
 	float interpolateFuncFloat(const AnimationKey<float> &a, const AnimationKey<float> &b, const AnimationKeyTime &targetTime);
 	double interpolateFuncDouble(const AnimationKey<double> &a, const AnimationKey<double> &b, const AnimationKeyTime &targetTime);
 }
