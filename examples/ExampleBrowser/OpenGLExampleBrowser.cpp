@@ -1229,6 +1229,8 @@ void OpenGLExampleBrowser::update(float deltaTime)
 			BT_PROFILE("Draw Grid");
 			//glPolygonOffset(3.0, 3);
 			//glEnable(GL_POLYGON_OFFSET_FILL);
+			dg.gridSize = sCurrentDemo->getGridSize();
+			dg.coordAxisSize = sCurrentDemo->getCoordAxisSize();
 			s_app->drawGrid(dg);
 		}
 		if (renderVisualGeometry && ((gDebugDrawFlags & btIDebugDraw::DBG_DrawWireframe) == 0))

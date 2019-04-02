@@ -933,9 +933,9 @@ void SimpleOpenGL3App::drawGrid(DrawGridData data)
 									gridColor,
 									vertices.size(), sizeof(b3Vector3), &indices[0], indices.size(), 1);
 
-	m_instancingRenderer->drawLine(b3MakeVector3(0, 0, 0), b3MakeVector3(1, 0, 0), b3MakeVector3(1, 0, 0), 3);
-	m_instancingRenderer->drawLine(b3MakeVector3(0, 0, 0), b3MakeVector3(0, 1, 0), b3MakeVector3(0, 1, 0), 3);
-	m_instancingRenderer->drawLine(b3MakeVector3(0, 0, 0), b3MakeVector3(0, 0, 1), b3MakeVector3(0, 0, 1), 3);
+	m_instancingRenderer->drawLine(b3MakeVector3(0, 0, 0), b3MakeVector3(data.coordAxisSize, 0, 0), b3MakeVector3(1, 0, 0), 3);
+	m_instancingRenderer->drawLine(b3MakeVector3(0, 0, 0), b3MakeVector3(0, data.coordAxisSize, 0), b3MakeVector3(0, 1, 0), 3);
+	m_instancingRenderer->drawLine(b3MakeVector3(0, 0, 0), b3MakeVector3(0, 0, data.coordAxisSize), b3MakeVector3(0, 0, 1), 3);
 
 	//	void GLInstancingRenderer::drawPoints(const float* positions, const float color[4], int numPoints, int pointStrideInBytes, float pointDrawSize)
 

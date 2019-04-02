@@ -40,12 +40,13 @@ class InverseDynamicsTest : public CommonMultiBodyBase
 	int m_stepCount;
 	float m_timeCount;
 	std::vector<SkeletonNode> m_skeletonNodes;
-	std::vector<btQuaternion> m_zeroNodeWorldToLocalRotations;
 	std::vector<btQuaternion> m_zeroJointFrameRotations;
 
 public:
 	InverseDynamicsTest(struct GUIHelperInterface* helper);
 	virtual ~InverseDynamicsTest();
+	virtual int getGridSize() { return 100; }
+	virtual int getCoordAxisSize() { return 20; }
 
 	virtual void initPhysics();
 	virtual void stepSimulation(float deltaTime);
@@ -62,7 +63,7 @@ public:
 		pitch = 0;
 		float yaw = 0;
 		// float targetPos[3] = { 0, 30, 6 };
-		float targetPos[3] = { 0, -10, 2 };
+		float targetPos[3] = { 0, -150, 80 };
 		m_guiHelper->resetCamera(dist, yaw, pitch, targetPos[0], targetPos[1], targetPos[2]);
 	}
 };
@@ -101,7 +102,7 @@ bool InverseDynamicsTest::preprocessSkeletonNodesForTest(std::vector<SkeletonNod
 #if 1
 	int skeletonNodeCount = (int)skeletonNodes.size();
 
-	if (true)
+	if (false)
 	{
 		for (int i = 0; i < skeletonNodeCount; i++)
 		{
@@ -114,8 +115,8 @@ bool InverseDynamicsTest::preprocessSkeletonNodesForTest(std::vector<SkeletonNod
 				node.animationR[0].clear();
 				node.animationR[1].clear();
 				node.animationR[2].clear();
-				node.animationR[0].addKey(0, 0);
-				//node.animationR[0].addKey(3000, 45);
+				//node.animationR[1].addKey(0, 0);
+				//node.animationR[1].addKey(3000, 90);
 			}
 			else if (i == 1)
 			{
@@ -124,23 +125,25 @@ bool InverseDynamicsTest::preprocessSkeletonNodesForTest(std::vector<SkeletonNod
 				node.animationR[2].clear();
 				node.animationR[1].addKey(0, 0);
 				node.animationR[1].addKey(3000, 90);
+				node.animationR[0].addKey(0, 0);
+				node.animationR[0].addKey(3000, 90);
 			}
 			else
 			{
-				//node.animationR[0].clear();
-				//node.animationR[1].clear();
-				//node.animationR[2].clear();
+				node.animationR[0].clear();
+				node.animationR[1].clear();
+				node.animationR[2].clear();
 			}
 		}
 	}
 
 
-	skeletonNodes[0].setTranslation(0, 0, 0);
-	skeletonNodes[0].setRotation(0, 0, 0);
-	skeletonNodes[0].setRotationPre(0, 0, 0);
+	//skeletonNodes[0].setTranslation(0, 0, 0);
+	//skeletonNodes[0].setRotation(0, 0, 0);
+	//skeletonNodes[0].setRotationPre(0, 0, 0);
 
-	skeletonNodes[1].setTranslation(0, 0, 0);
-	skeletonNodes[1].setRotation(0, 0, 0);
+	//skeletonNodes[1].setTranslation(0, 0, 0);
+	//skeletonNodes[1].setRotation(0, 0, 0);
 #endif
 	return true;
 }
@@ -163,12 +166,20 @@ void InverseDynamicsTest::initPhysics()
 	const btVector3 boneHalfExtents = btVector3(0.05, 0.4, 0.1);
 	if (useFBX)
 	{
-		FbxUtility::loadFbxFile("D:\\motion\\bullet\\nobody.FBX", m_skeletonNodes);
+		std::string testDataDir = "E:\\work\\motion\\testdata\\";
+
+		std::string fileName = "nobody.FBX";
+		std::string debugFileName = fileName.substr(0, fileName.length() - 4) + "_debug.fbx";
+
+		std::string filePath = testDataDir + fileName;
+		std::string debugFilePath = testDataDir + debugFileName;
+
+		FbxUtility::loadFbxFile(filePath.c_str(), m_skeletonNodes);
 
 		preprocessSkeletonNodesForTest(m_skeletonNodes);
-		FbxUtility::transFbxFile("D:\\motion\\bullet\\nobody.FBX", "E:\\work\\motion\\nobody_trans.FBX", m_skeletonNodes);
+		FbxUtility::transFbxFile(filePath.c_str(), debugFilePath.c_str() , m_skeletonNodes);
 
-		m_multiBody = SkeletonUtility::createMultiBodyFromSkeletonNodes(m_skeletonNodes, m_zeroNodeWorldToLocalRotations, m_zeroJointFrameRotations);
+		m_multiBody = SkeletonUtility::createMultiBodyFromSkeletonNodes(m_skeletonNodes, 0, m_zeroJointFrameRotations);
 		SkeletonUtility::createMultiBodyColliders(m_dynamicsWorld, m_multiBody);
 	}
 	else
@@ -190,25 +201,22 @@ void InverseDynamicsTest::stepSimulation(float deltaTime)
 	// step the simulation
 	if (m_dynamicsWorld)
 	{
-		AnimationKeyTime time = int(m_timeCount * 1000) % 3000;
-		std::vector<btQuaternion> worldToLocalRoations, jointRotations;
-		SkeletonUtility::calcNodeWorldToLocalRotations(m_skeletonNodes, worldToLocalRoations, time);
-		SkeletonUtility::calcJointRotationsAtTime(m_skeletonNodes, time, m_zeroJointFrameRotations, jointRotations);
+		AnimationKeyTime time = m_timeCount * 1000;
 
-		SkeletonNode::AnimValueType x = 0, y = 0, z = 0;
-		m_skeletonNodes[0].getTranslationAtTime(time, x, y, z);
-		m_multiBody->setBasePos(btVector3(x, y, z));
-		btQuaternion baseRotation = SkeletonUtility::skeletonNodeRotation(m_skeletonNodes[0], time) * SkeletonUtility::skeletonNodeRotation(m_skeletonNodes[1]);
-		m_multiBody->setWorldToBaseRot(baseRotation);
+		btTransform baseTransform = SkeletonUtility::calcBaseTransformAtTime(m_skeletonNodes, time);
+		m_multiBody->setBaseWorldTransform(baseTransform);
 
-		int count = (int)jointRotations.size();
+		std::vector<btQuaternion> jointDofs;
+		SkeletonUtility::calcJointDofAtTime(m_skeletonNodes, m_zeroJointFrameRotations, jointDofs, time);
+		int count = (int)jointDofs.size();
 		for (int i = 2; i < count; i++)
 		{
-			const SkeletonNode &node = m_skeletonNodes[i];
-			btQuaternion curRotaion = jointRotations[i];
+			const btQuaternion &curRotaion = jointDofs[i];
 			float pos[4] = { curRotaion.x(), curRotaion.y(), curRotaion.z(), curRotaion.w()};
 			m_multiBody->setJointPosMultiDof(i - 2, pos);
 		}
+
+		int numDofs = m_multiBody->getNumDofs();
 
 		/*
 		btScalar degree = m_stepCount / 10.0;

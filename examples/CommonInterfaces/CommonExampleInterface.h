@@ -59,6 +59,9 @@ public:
 	virtual void vrGenericTrackerMoveCallback(int controllerId, float pos[4], float orientation[4]) {}
 
 	virtual void processCommandLineArgs(int argc, char* argv[]){};
+
+	virtual int getGridSize() { return 10; }
+	virtual int getCoordAxisSize() { return 1; }
 };
 
 class ExampleEntries
